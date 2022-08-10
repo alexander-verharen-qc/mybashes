@@ -19,6 +19,7 @@ Available options:
 -f, --flag      Some flag description
 -p, --param     Some param description
 -u, --username  username for Rackspace login
+-d, --sourcedir directory for local filestorage
 EOF
   exit
 }
@@ -67,6 +68,10 @@ parse_params() {
       username="${2-}"
       shift
       ;;
+    -d | --sourcedir) # what's the local data directory
+      sourcedir="${2-}"
+      shift
+      ;;
     -?*) die "Unknown option: $1" ;;
     *) break ;;
     esac
@@ -76,8 +81,9 @@ parse_params() {
   args=("$@")
 
   # check required params and arguments
-  [[ -z "${param-}" ]] || [[ -z "${username-}" ]] && die "Missing required parameter: param or username"
+  [[ -z "${param-}" ]] || [[ -z "${username-}" ]] || [[ -z "${sourcedir-}" ]] && die "Missing required parameter: param,username,sourcedir"
   [[ ${#args[@]} -eq 0 ]] && die "Missing script arguments"
+  [[ ! -d ${sourcedir} ]] && die "Source Directory does not exist"
 
   return 0
 }
@@ -114,7 +120,7 @@ rackspace_url=`cat $rackspace_keyfile| grep url| cut -f2 -d"="`
 echo "Key and URL ${rackspace_url} extracted from ${rackspace_keyfile} OK"
 # END OF RACKSPACE API KEY BLOCK
 
-# BEGIN DUCK INSTALL, IF NOT FOUND 
+# BEGIN PREREQUISITES INSTALL/UPDATE 
 
 # Check O/S
 
@@ -128,31 +134,67 @@ case "${unameOut}" in
 esac
 echo ${machine}
 
-# Install Duck Application
+# Install/Update Prerequisite Applications
+# duck (https://duck.sh/)
+# md5sum (https://command-not-found.com/md5sum)
 
-if [ ! -f /usr/local/bin/duck ]; then
-  if [ machine = "Mac" ]; then
-    brew install duck
-  elif [ machine = Linux ]; then
-    yum install duck
-  fi
-  else
-    echo Duck already installed and found in /usr/local/bin
-fi  
+if [ machine = "Mac" ]; then
+  
+  # duck
+  brew install duck
+  
+  # md5sum
+  brew install md5sha1sum
+
+elif [ machine = Linux ]; then
+  # duck
+  echo -e "[duck-stable]\nname=duck-stable\nbaseurl=https://repo.cyberduck.io/stable/\$basearch/\nenabled=1\ngpgcheck=0" | sudo tee /etc/yum.repos.d/duck-stable.repo
+  sudo yum -y install duck
+
+  # core utils/md5sum
+  sudo yum -y install coreutils
+fi
 
 
-# END DUCK INSTALL
+# END PREREQUISITE INSTALLS/UPDATES
 
 # BEGIN EXECUTING DUCK WORKFLOW
+
+randomized_string=`echo $RANDOM | md5sum | cut -c1-5`
+
+# Determine file names for list purposes
+rackspace_source_list=~/rackspace_source_list-${randomized_string}.list
+rackspace_source_list2=~/rackspace_source_list2-${randomized_string}.list
+local_source_list=~/local_source_list-${randomized_string}.list
+rs_backup_output=~/rs_backup_output-${randomized_string}.out
+difflist=~/rs_backup_diff-${randomized_string}.list
 
 case "${param}" in
     download*)  
     # create a list of objects in rackspace container
+
+      duck "-u" ${username} "-p" ${rackspace_key} "--list" ${rackspace_url}${args} | tee $rackspace_source_list
+
     # estimate space requirement
     # download the actual contents
+      
+      cd ${sourcedir}
+      duck "-u" ${username} "-p" ${rackspace_key} "--parallel" "--download" ${rackspace_url}${args} ${sourcedir} | tee $rs_backup_output
+      duck "-u" ${username} "-p" ${rackspace_key} "--list" ${rackspace_url}${args} | tee $rackspace_source_list2
+
     # create list of downloaded objects in current directory
+      
+      cd ${sourcedir}
+      ls -1 >${local_source_list}
+
     # verify downloaded content with rackspace container object list (issue warning if new files are added)
+      
+      diff $local_source_list $rackspace_source_list | tee ${difflist}
+
     # verify contents between first and second lists (any new files needed?)
+      
+      diff $local_source_list $local_source_list2 | tee ~/rs_backup_sourcediff-${randomized_string}
+      
     ;;
     Upload*)
     # create a list of objects from current directory
@@ -172,3 +214,4 @@ msg "${RED}Read parameters:${NOFORMAT}"
 msg "- flag: ${flag}"
 msg "- param: ${param}"
 msg "- arguments: ${args[*]-}"
+msg "- output files: ${rs_backup_diff}, ${rackspace_source_list}, ${rackspace_source_list2}, ${rs_backup_output},"
