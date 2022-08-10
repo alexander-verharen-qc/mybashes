@@ -143,11 +143,30 @@ fi
 
 # END DUCK INSTALL
 
-# BEGIN EXECUTING DUCK COMMAND
+# BEGIN EXECUTING DUCK WORKFLOW
 
-duck "-u" ${username} "-p" ${rackspace_key} "--"${param} ${rackspace_url}${args}
+case "${param}" in
+    download*)  
+    # create a list of objects in rackspace container
+    # estimate space requirement
+    # download the actual contents
+    # create list of downloaded objects in current directory
+    # verify downloaded content with rackspace container object list (issue warning if new files are added)
+    # verify contents between first and second lists (any new files needed?)
+    ;;
+    Upload*)
+    # create a list of objects from current directory
+    # upload objects to rackspace container with parallelization
+    # create list of objects in rackspace container
+    # validate objects from container vs current directory
+    ;;
+    *)
+    # 
+    duck "-u" ${username} "-p" ${rackspace_key} "--"${param} ${rackspace_url}${args}    
 
+esac
 
+# END EXECUTION OF DUCK WORKFLOW
 
 msg "${RED}Read parameters:${NOFORMAT}"
 msg "- flag: ${flag}"
