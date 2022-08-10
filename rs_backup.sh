@@ -169,6 +169,21 @@ local_source_list=~/local_source_list-${randomized_string}.list
 rs_backup_output=~/rs_backup_output-${randomized_string}.out
 difflist=~/rs_backup_diff-${randomized_string}.list
 
+# Output various variables prior to starting workflow
+msg "${RED}Read parameters:${NOFORMAT}"
+msg "- flag: ${flag}"
+msg "- param: ${param}"
+msg "- username: ${username}"
+msg "- sourcedir: ${sourcedir}"
+msg "- arguments: ${args[*]-}"
+msg "- randomized string: ${randomized_string}"
+msg "- output files;"
+msg "-- Post backup diff: ${difflist}"
+msg "-- Pre backup Rackspace Source List : ${rackspace_source_list}" 
+msg "-- Post Backup Rackspace Source List: ${rackspace_source_list2}"
+msg "-- Output of this command: ${rs_backup_output}"
+
+
 case "${param}" in
     download*)  
     # create a list of objects in rackspace container
@@ -194,7 +209,7 @@ case "${param}" in
     # verify contents between first and second lists (any new files needed?)
       
       diff $local_source_list $local_source_list2 | tee ~/rs_backup_sourcediff-${randomized_string}
-      
+
     ;;
     Upload*)
     # create a list of objects from current directory
@@ -209,9 +224,3 @@ case "${param}" in
 esac
 
 # END EXECUTION OF DUCK WORKFLOW
-
-msg "${RED}Read parameters:${NOFORMAT}"
-msg "- flag: ${flag}"
-msg "- param: ${param}"
-msg "- arguments: ${args[*]-}"
-msg "- output files: ${rs_backup_diff}, ${rackspace_source_list}, ${rackspace_source_list2}, ${rs_backup_output},"
