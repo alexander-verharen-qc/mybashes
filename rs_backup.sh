@@ -189,6 +189,7 @@ case "${param}" in
     # create a list of objects in rackspace container
 
       duck "-u" ${username} "-p" ${rackspace_key} "--list" ${rackspace_url}${args} | tee $rackspace_source_list
+      nbr_files_to_download=`cat $rackspace_source_list`
 
     # estimate space requirement
     # download the actual contents
@@ -200,10 +201,15 @@ case "${param}" in
     # create list of downloaded objects in current directory
       
       cd ${sourcedir}
-      ls -1 >${local_source_list}
+      ls -1 >${local_source_list} 
+      nbr_files_downloaded=`cat ${local_source_list}`
 
     # verify downloaded content with rackspace container object list (issue warning if new files are added)
-      
+      nbr_files_not_downloaded = $nbr_files_to_download - $nbr_files_downloaded
+      if [ $nbr_files_not_downloaded -gt 0 ];
+         echo "WARNING: There are ${nbr_files_not_downloaded} less files available than the ${nbr_files_to_download} attempted"
+      fi
+
       diff $local_source_list $rackspace_source_list | tee ${difflist}
 
     # verify contents between first and second lists (any new files needed?)
